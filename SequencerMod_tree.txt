@@ -1,0 +1,56 @@
+SequencerMod
+├── gradle.properties
+└── src
+    ├── client
+    │   ├── java
+    │   │   └── seq
+    │   │       └── sequencermod
+    │   │           ├── client
+    │   │           │   ├── SequencerModClient.java
+    │   │           │   ├── lol
+    │   │           │   └── screen
+    │   │           │       └── SequencerScreen.java
+    │   │           ├── item
+    │   │           └── mixin
+    │   │               └── client
+    │   │                   └── ExampleClientMixin.java
+    │   └── resources
+    │       └── sequencermod.client.mixins.json
+    └── main
+        ├── java
+        │   └── seq
+        │       └── sequencermod
+        │           ├── SequencerMod.java
+        │           ├── block
+        │           │   ├── ModBlocks.java
+        │           │   ├── custom
+        │           │   │   └── SequencerBlock.java
+        │           │   └── entity
+        │           │       ├── ModBlockEntities.java
+        │           │       └── SequencerBlockEntity.java
+        │           ├── item
+        │           │   └── ModItemGroups.java
+        │           ├── mixin
+        │           │   └── ExampleMixin.java
+        │           └── screen
+        │               ├── ModScreenHandlers.java
+        │               └── SequencerScreenHandler.java
+        └── resources
+            ├── assets
+            │   └── sequencer
+            │       ├── blockstates
+            │       │   └── sequencer_block.json
+            │       ├── icon.png
+            │       ├── lang
+            │       │   └── en_us.json
+            │       ├── loot_tables
+            │       │   └── blocks
+            │       │       └── sequencer_block.json
+            │       ├── models
+            │       │   ├── block
+            │       │   │   └── sequencer.json
+            │       │   └── item
+            │       │       └── sequencer_block.json
+            │       └── textures
+            ├── fabric.mod.json
+            └── sequencermod.mixins.json
