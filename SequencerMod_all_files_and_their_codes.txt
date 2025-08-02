@@ -1,4 +1,3 @@
-
 ==================================================
 
 --- Файл №1 ---
@@ -30,8 +29,11 @@ fabric_version=0.86.1+1.20.1
 --------------------
 package seq.sequencermod.client;
 
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import seq.sequencermod.block.ModBlocks;
+import seq.sequencermod.client.renderer.GeckoRenderer;
 import seq.sequencermod.client.screen.SequencerScreen;
+import seq.sequencermod.entity.ModEntities;
 import seq.sequencermod.screen.ModScreenHandlers;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
@@ -44,12 +46,69 @@ public class SequencerModClient implements ClientModInitializer {
         HandledScreens.register(ModScreenHandlers.SEQUENCER_SCREEN_HANDLER, SequencerScreen::new);
 
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.SEQUENCER_BLOCK, RenderLayer.getCutout());
+
+        // РЕГИСТРАЦИЯ РЕНДЕРЕРА
+        EntityRendererRegistry.register(ModEntities.GECKO, GeckoRenderer::new);
     }
 }
 
 ==================================================
 
 --- Файл №3 ---
+Путь: src\client\java\seq\sequencermod\client\model\GeckoModel.java
+--------------------
+package seq.sequencermod.client.model;
+
+import net.minecraft.util.Identifier;
+import seq.sequencermod.SequencerMod;
+import seq.sequencermod.entity.GeckoEntity;
+import software.bernie.geckolib.model.GeoModel;
+
+public class GeckoModel extends GeoModel<GeckoEntity> {
+    @Override
+    public Identifier getModelResource(GeckoEntity animatable) {
+        // БЫЛО: return new Identifier(SequencerMod.MOD_ID, "geo/entity/gecko.geo.json");
+        // СТАЛО:
+        return new Identifier(SequencerMod.MOD_ID, "geo/entity/custom_cube.geo.json");
+    }
+
+    @Override
+    public Identifier getTextureResource(GeckoEntity animatable) {
+        // БЫЛО: return new Identifier(SequencerMod.MOD_ID, "textures/entity/gecko.png");
+        // СТАЛО:
+        return new Identifier(SequencerMod.MOD_ID, "textures/entity/custom_cube.png");
+    }
+
+    @Override
+    public Identifier getAnimationResource(GeckoEntity animatable) {
+        // БЫЛО: return new Identifier(SequencerMod.MOD_ID, "animations/entity/gecko.animation.json");
+        // СТАЛО:
+        return new Identifier(SequencerMod.MOD_ID, "animations/entity/custom_cube.animation.json");
+    }
+}
+
+==================================================
+
+--- Файл №4 ---
+Путь: src\client\java\seq\sequencermod\client\renderer\GeckoRenderer.java
+--------------------
+package seq.sequencermod.client.renderer;
+
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import seq.sequencermod.client.model.GeckoModel;
+import seq.sequencermod.entity.GeckoEntity;
+import software.bernie.geckolib.renderer.GeoEntityRenderer;
+
+public class GeckoRenderer extends GeoEntityRenderer<GeckoEntity> {
+    public GeckoRenderer(EntityRendererFactory.Context renderManager) {
+        super(renderManager, new GeckoModel());
+        this.shadowRadius = 0.3f; // Настройте радиус тени
+    }
+}
+
+==================================================
+
+--- Файл №5 ---
 Путь: src\client\java\seq\sequencermod\client\screen\SequencerScreen.java
 --------------------
 package seq.sequencermod.client.screen;
@@ -93,7 +152,7 @@ public class SequencerScreen extends HandledScreen<SequencerScreenHandler> {
 
 ==================================================
 
---- Файл №4 ---
+--- Файл №6 ---
 Путь: src\client\java\seq\sequencermod\mixin\client\ExampleClientMixin.java
 --------------------
 package seq.sequencermod.mixin.client;
@@ -114,7 +173,7 @@ public class ExampleClientMixin {
 
 ==================================================
 
---- Файл №5 ---
+--- Файл №7 ---
 Путь: src\client\resources\sequencermod.client.mixins.json
 --------------------
 {
@@ -131,18 +190,21 @@ public class ExampleClientMixin {
 
 ==================================================
 
---- Файл №6 ---
+--- Файл №8 ---
 Путь: src\main\java\seq\sequencermod\SequencerMod.java
 --------------------
 package seq.sequencermod;
 
 import seq.sequencermod.block.ModBlocks;
 import seq.sequencermod.block.entity.ModBlockEntities;
+import seq.sequencermod.entity.ModEntities;
 import seq.sequencermod.item.ModItemGroups;
+import seq.sequencermod.item.ModItems;
 import seq.sequencermod.screen.ModScreenHandlers;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.bernie.geckolib.GeckoLib;
 
 public class SequencerMod implements ModInitializer {
     public static final String MOD_ID = "sequencer";
@@ -152,17 +214,20 @@ public class SequencerMod implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("Initializing Sequencer Mod");
 
-        // Регистрация всех компонентов мода
+        GeckoLib.initialize();
+
         ModItemGroups.registerItemGroups();
+        ModItems.registerModItems();
         ModBlocks.registerModBlocks();
         ModBlockEntities.registerBlockEntities();
+        ModEntities.registerModEntities();
         ModScreenHandlers.registerScreenHandlers();
     }
 }
 
 ==================================================
 
---- Файл №7 ---
+--- Файл №9 ---
 Путь: src\main\java\seq\sequencermod\block\ModBlocks.java
 --------------------
 package seq.sequencermod.block;
@@ -204,7 +269,7 @@ public class ModBlocks {
 
 ==================================================
 
---- Файл №8 ---
+--- Файл №10 ---
 Путь: src\main\java\seq\sequencermod\block\custom\SequencerBlock.java
 --------------------
 package seq.sequencermod.block.custom;
@@ -272,7 +337,7 @@ public class SequencerBlock extends BlockWithEntity implements BlockEntityProvid
 
 ==================================================
 
---- Файл №9 ---
+--- Файл №11 ---
 Путь: src\main\java\seq\sequencermod\block\entity\ModBlockEntities.java
 --------------------
 package seq.sequencermod.block.entity;
@@ -300,47 +365,156 @@ public class ModBlockEntities {
 
 ==================================================
 
---- Файл №10 ---
+--- Файл №12 ---
 Путь: src\main\java\seq\sequencermod\block\entity\SequencerBlockEntity.java
 --------------------
 package seq.sequencermod.block.entity;
 
 import seq.sequencermod.screen.SequencerScreenHandler;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory; // <-- ИЗМЕНЕН ИМПОРТ
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.SimpleInventory; // <-- Добавлен импорт
-import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.inventory.SimpleInventory;
+import net.minecraft.network.PacketByteBuf; // <-- ДОБАВЛЕН ИМПОРТ
 import net.minecraft.screen.ScreenHandler;
+import net.minecraft.server.network.ServerPlayerEntity; // <-- ДОБАВЛЕН ИМПОРТ
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
-public class SequencerBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
+// ИЗМЕНЕНИЕ: Реализуем ExtendedScreenHandlerFactory вместо NamedScreenHandlerFactory
+public class SequencerBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory {
     public SequencerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SEQUENCER_BLOCK_ENTITY, pos, state);
     }
 
-    // Название нашего GUI
+    // Этот метод остается без изменений
     @Override
     public Text getDisplayName() {
         return Text.translatable("block.sequencer.sequencer_block");
     }
 
-    // Создает экземпляр ScreenHandler'а (логики GUI) на сервере
+    // Этот метод остается без изменений
     @Nullable
     @Override
     public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        // <-- ИСПРАВЛЕНО: Теперь мы вызываем конструктор, который принимает инвентарь.
-        // Так как у нас пока нет реального инвентаря, мы создаем пустой SimpleInventory.
         return new SequencerScreenHandler(syncId, playerInventory, new SimpleInventory(0));
+    }
+
+    // ДОБАВЛЕННЫЙ МЕТОД: Этого требует интерфейс ExtendedScreenHandlerFactory.
+    // Он нужен для отправки дополнительных данных с сервера на клиент при открытии GUI.
+    // Пока нам нечего отправлять, поэтому он остается пустым.
+    @Override
+    public void writeScreenOpeningData(ServerPlayerEntity player, PacketByteBuf buf) {
+        // Пример: если бы нам нужно было отправить позицию блока, мы бы написали:
+        // buf.writeBlockPos(pos);
     }
 }
 
 ==================================================
 
---- Файл №11 ---
+--- Файл №13 ---
+Путь: src\main\java\seq\sequencermod\entity\GeckoEntity.java
+--------------------
+package seq.sequencermod.entity;
+
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.ai.goal.*;
+import net.minecraft.entity.attribute.DefaultAttributeContainer;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.mob.PathAwareEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.world.World;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.AnimationState;
+import software.bernie.geckolib.core.animation.RawAnimation;
+import software.bernie.geckolib.core.object.PlayState;
+import software.bernie.geckolib.util.GeckoLibUtil;
+
+public class GeckoEntity extends PathAwareEntity implements GeoEntity {
+    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+
+    public GeckoEntity(EntityType<? extends PathAwareEntity> entityType, World world) {
+        super(entityType, world);
+    }
+
+    public static DefaultAttributeContainer.Builder setAttributes() {
+        return PathAwareEntity.createMobAttributes()
+                .add(EntityAttributes.GENERIC_MAX_HEALTH, 10.0D)
+                .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.3D);
+    }
+
+    @Override
+    protected void initGoals() {
+        this.goalSelector.add(1, new SwimGoal(this));
+        this.goalSelector.add(2, new WanderAroundFarGoal(this, 0.75f, 1));
+        this.goalSelector.add(3, new LookAtEntityGoal(this, PlayerEntity.class, 8.0f));
+        this.goalSelector.add(4, new LookAroundGoal(this));
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>(this, "controller", 0, this::predicate));
+    }
+
+    // --- ИЗМЕНЕННЫЙ МЕТОД ---
+    private PlayState predicate(AnimationState<GeckoEntity> state) {
+        // Если сущность движется...
+        if (state.isMoving()) {
+            // ...проигрываем анимацию 'walk' в цикле.
+            return state.setAndContinue(RawAnimation.begin().thenLoop("walk"));
+        }
+        // Если стоит на месте...
+        // ...проигрываем анимацию 'idle' в цикле.
+        return state.setAndContinue(RawAnimation.begin().thenLoop("idle"));
+    }
+    // -------------------------
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.cache;
+    }
+}
+
+==================================================
+
+--- Файл №14 ---
+Путь: src\main\java\seq\sequencermod\entity\ModEntities.java
+--------------------
+package seq.sequencermod.entity;
+
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;
+import net.minecraft.entity.EntityDimensions;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnGroup;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
+import seq.sequencermod.SequencerMod;
+
+public class ModEntities {
+    public static final EntityType<GeckoEntity> GECKO = Registry.register(
+            Registries.ENTITY_TYPE,
+            new Identifier(SequencerMod.MOD_ID, "gecko"),
+            FabricEntityTypeBuilder.create(SpawnGroup.CREATURE, GeckoEntity::new)
+                    .dimensions(EntityDimensions.fixed(0.5f, 0.5f)).build()
+    );
+
+    public static void registerModEntities() {
+        SequencerMod.LOGGER.info("Registering Mod Entities for " + SequencerMod.MOD_ID);
+        FabricDefaultAttributeRegistry.register(GECKO, GeckoEntity.setAttributes());
+    }
+}
+
+==================================================
+
+--- Файл №15 ---
 Путь: src\main\java\seq\sequencermod\item\ModItemGroups.java
 --------------------
 package seq.sequencermod.item;
@@ -361,6 +535,7 @@ public class ModItemGroups {
             FabricItemGroup.builder().displayName(Text.translatable("itemgroup.sequencer_group"))
                     .icon(() -> new ItemStack(ModBlocks.SEQUENCER_BLOCK)).entries((displayContext, entries) -> {
                         entries.add(ModBlocks.SEQUENCER_BLOCK);
+                        entries.add(ModItems.GECKO_SPAWN_EGG); // <-- ДОБАВЛЕНО ЯЙЦО
                     }).build());
 
     public static void registerItemGroups() {
@@ -370,7 +545,36 @@ public class ModItemGroups {
 
 ==================================================
 
---- Файл №12 ---
+--- Файл №16 ---
+Путь: src\main\java\seq\sequencermod\item\ModItems.java
+--------------------
+package seq.sequencermod.item;
+
+import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
+import net.minecraft.item.Item;
+import net.minecraft.item.SpawnEggItem;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
+import seq.sequencermod.SequencerMod;
+import seq.sequencermod.entity.ModEntities;
+
+public class ModItems {
+    public static final Item GECKO_SPAWN_EGG = registerItem("gecko_spawn_egg",
+            new SpawnEggItem(ModEntities.GECKO, 0x44AA44, 0x226622, new FabricItemSettings()));
+
+    private static Item registerItem(String name, Item item) {
+        return Registry.register(Registries.ITEM, new Identifier(SequencerMod.MOD_ID, name), item);
+    }
+
+    public static void registerModItems() {
+        SequencerMod.LOGGER.info("Registering Mod Items for " + SequencerMod.MOD_ID);
+    }
+}
+
+==================================================
+
+--- Файл №17 ---
 Путь: src\main\java\seq\sequencermod\mixin\ExampleMixin.java
 --------------------
 package seq.sequencermod.mixin;
@@ -391,7 +595,7 @@ public class ExampleMixin {
 
 ==================================================
 
---- Файл №13 ---
+--- Файл №18 ---
 Путь: src\main\java\seq\sequencermod\screen\ModScreenHandlers.java
 --------------------
 package seq.sequencermod.screen;
@@ -416,7 +620,7 @@ public class ModScreenHandlers {
 
 ==================================================
 
---- Файл №14 ---
+--- Файл №19 ---
 Путь: src\main\java\seq\sequencermod\screen\SequencerScreenHandler.java
 --------------------
 package seq.sequencermod.screen;
@@ -460,7 +664,7 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №15 ---
+--- Файл №20 ---
 Путь: src\main\resources\fabric.mod.json
 --------------------
 {
@@ -491,7 +695,8 @@ public class SequencerScreenHandler extends ScreenHandler {
 		"fabricloader": ">=0.14.22",
 		"minecraft": "~1.20.1",
 		"java": ">=17",
-		"fabric-api": "*"
+		"fabric-api": "*",
+		"geckolib": "4.2.2"
 	},
 	"suggests": {
 		"another-mod": "*"
@@ -500,7 +705,7 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №16 ---
+--- Файл №21 ---
 Путь: src\main\resources\sequencermod.mixins.json
 --------------------
 {
@@ -520,7 +725,7 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №17 ---
+--- Файл №22 ---
 Путь: src\main\resources\assets\sequencer\icon.png
 --------------------
 [Это бинарный файл. Отображение содержимого невозможно.]
@@ -529,7 +734,102 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №18 ---
+--- Файл №23 ---
+Путь: src\main\resources\assets\sequencer\animations\entity\custom_cube.animation.json
+--------------------
+{
+	"format_version": "1.8.0",
+	"animations": {
+		"idle": {
+			"animation_length": 2,
+			"bones": {
+				"bone": {
+					"scale": {
+						"0.0": {
+							"vector": [4, 0.5, 4]
+						},
+						"1.0": {
+							"vector": [1, 3, 1],
+							"easing": "easeOutElastic"
+						},
+						"2.0": {
+							"vector": [4, 0.5, 4],
+							"easing": "easeOutElastic"
+						}
+					}
+				}
+			}
+		},
+		"walk": {
+			"animation_length": 1.0417,
+			"bones": {
+				"bone": {
+					"position": {
+						"0.0": {
+							"vector": [0, 0, 0]
+						},
+						"0.5417": {
+							"vector": [0, 5, 0],
+							"easing": "easeInBack"
+						},
+						"1.0417": {
+							"vector": [0, 0, 0],
+							"easing": "easeInBack"
+						}
+					},
+					"scale": {
+						"0.0": {
+							"vector": [1, 1, 1]
+						},
+						"0.5417": {
+							"vector": [6, 0.2, 6],
+							"easing": "easeInBack"
+						},
+						"1.0417": {
+							"vector": [1, 1, 1],
+							"easing": "easeInBack"
+						}
+					}
+				}
+			}
+		}
+	},
+	"geckolib_format_version": 2
+}
+
+==================================================
+
+--- Файл №24 ---
+Путь: src\main\resources\assets\sequencer\animations\entity\gecko.animation.json
+--------------------
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.gecko.walk": {
+      "loop": true,
+      "animation_length": 2.0,
+      "bones": {
+        "body": {
+          "position": {
+            "0.0": {
+              "vector": [0, 0, 0]
+            },
+            "1.0": {
+              "vector": [0, 0.5, 0]
+            },
+            "2.0": {
+              "vector": [0, 0, 0]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+==================================================
+
+--- Файл №25 ---
 Путь: src\main\resources\assets\sequencer\blockstates\sequencer_block.json
 --------------------
 {
@@ -542,17 +842,92 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №19 ---
-Путь: src\main\resources\assets\sequencer\lang\en_us.json
+--- Файл №26 ---
+Путь: src\main\resources\assets\sequencer\geo\entity\custom_cube.geo.json
 --------------------
 {
-  "block.sequencer.sequencer_block": "Sequencer",
-  "itemgroup.sequencer_group": "Sequencer Mod"
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.unknown",
+				"texture_width": 16,
+				"texture_height": 16,
+				"visible_bounds_width": 2,
+				"visible_bounds_height": 1.5,
+				"visible_bounds_offset": [0, 0.25, 0]
+			},
+			"bones": [
+				{
+					"name": "bone",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-1, 0, -1], "size": [2, 2, 2], "uv": [0, 0]}
+					]
+				}
+			]
+		}
+	]
 }
 
 ==================================================
 
---- Файл №20 ---
+--- Файл №27 ---
+Путь: src\main\resources\assets\sequencer\geo\entity\gecko.geo.json
+--------------------
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.gecko",
+        "texture_width": 16,
+        "texture_height": 16,
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 1.5,
+        "visible_bounds_offset": [0, 0.25, 0]
+      },
+      "bones": [
+        {
+          "name": "root",
+          "pivot": [0, 0, 0]
+        },
+        {
+          "name": "body",
+          "parent": "root",
+          "pivot": [0, 5, 0],
+          "cubes": [
+            {"origin": [-2, 1, -2], "size": [4, 4, 4], "uv": [0, 0]}
+          ]
+        },
+        {
+          "name": "head",
+          "parent": "body",
+          "pivot": [0, 5, 0],
+          "cubes": [
+            {"origin": [-1.5, 5, -1.5], "size": [3, 3, 3], "uv": [0, 8]}
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+==================================================
+
+--- Файл №28 ---
+Путь: src\main\resources\assets\sequencer\lang\en_us.json
+--------------------
+{
+  "block.sequencer.sequencer_block": "Sequencer",
+  "itemgroup.sequencer_group": "Sequencer Mod",
+  "entity.sequencer.gecko": "Gecko",
+  "item.sequencer.gecko_spawn_egg": "Gecko Spawn Egg"
+}
+
+==================================================
+
+--- Файл №29 ---
 Путь: src\main\resources\assets\sequencer\loot_tables\blocks\sequencer_block.json
 --------------------
 {
@@ -577,7 +952,7 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №21 ---
+--- Файл №30 ---
 Путь: src\main\resources\assets\sequencer\models\block\sequencer.json
 --------------------
 {
@@ -589,12 +964,21 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №22 ---
+--- Файл №31 ---
 Путь: src\main\resources\assets\sequencer\models\item\sequencer_block.json
 --------------------
 {
   "parent": "sequencer:block/sequencer"
 }
+
+==================================================
+
+--- Файл №32 ---
+Путь: src\main\resources\assets\sequencer\textures\entity\custom_cube.png
+--------------------
+[Это бинарный файл. Отображение содержимого невозможно.]
+[Расширение: .png]
+[Размер: 123 байт]
 
 ==================================================
 

@@ -8,6 +8,10 @@ SequencerMod
     │   │           ├── client
     │   │           │   ├── SequencerModClient.java
     │   │           │   ├── lol
+    │   │           │   ├── model
+    │   │           │   │   └── GeckoModel.java
+    │   │           │   ├── renderer
+    │   │           │   │   └── GeckoRenderer.java
     │   │           │   └── screen
     │   │           │       └── SequencerScreen.java
     │   │           ├── item
@@ -28,8 +32,12 @@ SequencerMod
         │           │   └── entity
         │           │       ├── ModBlockEntities.java
         │           │       └── SequencerBlockEntity.java
+        │           ├── entity
+        │           │   ├── GeckoEntity.java
+        │           │   └── ModEntities.java
         │           ├── item
-        │           │   └── ModItemGroups.java
+        │           │   ├── ModItemGroups.java
+        │           │   └── ModItems.java
         │           ├── mixin
         │           │   └── ExampleMixin.java
         │           └── screen
@@ -38,8 +46,16 @@ SequencerMod
         └── resources
             ├── assets
             │   └── sequencer
+            │       ├── animations
+            │       │   └── entity
+            │       │       ├── custom_cube.animation.json
+            │       │       └── gecko.animation.json
             │       ├── blockstates
             │       │   └── sequencer_block.json
+            │       ├── geo
+            │       │   └── entity
+            │       │       ├── custom_cube.geo.json
+            │       │       └── gecko.geo.json
             │       ├── icon.png
             │       ├── lang
             │       │   └── en_us.json
@@ -52,5 +68,7 @@ SequencerMod
             │       │   └── item
             │       │       └── sequencer_block.json
             │       └── textures
+            │           └── entity
+            │               └── custom_cube.png
             ├── fabric.mod.json
             └── sequencermod.mixins.json
