@@ -1,3 +1,4 @@
+Анализ содержимого папки: C:\Users\User\Desktop\proekt\SequencerMod
 ==================================================
 
 --- Файл №1 ---
@@ -29,32 +30,376 @@ fabric_version=0.86.1+1.20.1
 --------------------
 package seq.sequencermod.client;
 
-import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
-import seq.sequencermod.block.ModBlocks;
-import seq.sequencermod.client.renderer.GeckoRenderer;
-import seq.sequencermod.client.screen.SequencerScreen;
-import seq.sequencermod.entity.ModEntities;
-import seq.sequencermod.screen.ModScreenHandlers;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.text.Text;
+import seq.sequencermod.client.screen.SequencerScreen;
+import seq.sequencermod.handler.SequencerScreenHandler;
+import seq.sequencermod.init.ModScreenHandlers;
 
 public class SequencerModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        HandledScreens.register(ModScreenHandlers.SEQUENCER_SCREEN_HANDLER, SequencerScreen::new);
-
-        BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.SEQUENCER_BLOCK, RenderLayer.getCutout());
-
-        // РЕГИСТРАЦИЯ РЕНДЕРЕРА
-        EntityRendererRegistry.register(ModEntities.GECKO, GeckoRenderer::new);
+        // ИСПРАВЛЕНИЕ: Заменяем лямбду на анонимный класс для максимальной явности типов.
+        // Это самый надежный способ, который точно сработает.
+        HandledScreens.register(ModScreenHandlers.SEQUENCER_SCREEN_HANDLER, new HandledScreens.Provider<SequencerScreenHandler, SequencerScreen>() {
+            @Override
+            public SequencerScreen create(SequencerScreenHandler handler, PlayerInventory inventory, Text title) {
+                return new SequencerScreen(handler, inventory, title);
+            }
+        });
     }
 }
 
 ==================================================
 
 --- Файл №3 ---
+Путь: src\client\java\seq\sequencermod\client\gui\GuiUtils.java
+--------------------
+package seq.sequencermod.client.gui;
+
+import net.minecraft.client.gui.DrawContext;
+
+/**
+ * Утилиты для отрисовки GUI.
+ * В Blockbuster это часть библиотеки mclib.
+ */
+public class GuiUtils {
+    public static void drawGlow(DrawContext context, int x, int y, int w, int h, int color) {
+        // Отрисовка "свечения" вокруг панели (просто цветной прямоугольник)
+        int a = (color >> 24 & 255);
+        int r = (color >> 16 & 255);
+        int g = (color >> 8 & 255);
+        int b = (color & 255);
+        context.fill(x, y, x + w, y + h, color);
+    }
+
+    public static void drawDarkPanel(DrawContext context, int x, int y, int w, int h) {
+        // Отрисовка темной панели, как в Blockbuster
+        drawGlow(context, x, y, w, h, 0xdd000000);
+    }
+}
+
+==================================================
+
+--- Файл №4 ---
+Путь: src\client\java\seq\sequencermod\client\gui\MorphPanelFactory.java
+--------------------
+package seq.sequencermod.client.gui;
+
+import net.minecraft.client.MinecraftClient;
+import seq.sequencermod.client.gui.panel.GuiPlayerMorphPanel;
+import seq.sequencermod.client.gui.widget.panel.GuiMorphPanel;
+import seq.sequencermod.morph.AbstractMorph;
+import seq.sequencermod.morph.PlayerMorph;
+
+/**
+ * Этот класс существует только на клиенте и отвечает за создание
+ * правильной панели настроек для каждого типа морфа.
+ */
+public class MorphPanelFactory {
+
+    public static GuiMorphPanel createPanelFor(AbstractMorph morph, MinecraftClient client) {
+        if (morph == null) {
+            return null;
+        }
+
+        if (morph instanceof PlayerMorph) {
+            return new GuiPlayerMorphPanel(client, (PlayerMorph) morph);
+        }
+
+        // Сюда в будущем можно будет добавлять другие типы морфов
+        // if (morph instanceof CustomModelMorph) {
+        //     return new GuiCustomModelMorphPanel(client, (CustomModelMorph) morph);
+        // }
+
+        return null; // Возвращаем null, если для морфа нет панели
+    }
+}
+
+==================================================
+
+--- Файл №5 ---
+Путь: src\client\java\seq\sequencermod\client\gui\panel\GuiPlayerMorphPanel.java
+--------------------
+package seq.sequencermod.client.gui.panel;
+
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.text.Text;
+import seq.sequencermod.client.gui.GuiUtils;
+import seq.sequencermod.client.gui.widget.panel.GuiMorphPanel;
+import seq.sequencermod.morph.PlayerMorph;
+
+public class GuiPlayerMorphPanel extends GuiMorphPanel {
+
+    private TextFieldWidget nameField;
+    private final PlayerMorph playerMorph;
+
+    public GuiPlayerMorphPanel(MinecraftClient client, PlayerMorph morph) {
+        super(client, morph);
+        this.playerMorph = morph;
+    }
+
+    @Override
+    public void open() {
+        super.open();
+        this.nameField = new TextFieldWidget(this.client.textRenderer, 0, 0, 100, 20, Text.literal(""));
+        this.nameField.setText(this.playerMorph.name);
+        this.nameField.setFocused(true);
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        if (this.nameField != null) {
+            this.playerMorph.name = this.nameField.getText();
+        }
+    }
+
+    @Override
+    public void renderButton(DrawContext context, int mouseX, int mouseY, float delta) {
+        // Позиционируем текстовое поле здесь, чтобы оно всегда было в правильном месте
+        if (this.nameField != null) {
+            this.nameField.setX(this.getX() + 10);
+            this.nameField.setY(this.getY() + 10);
+        }
+
+        // Отрисовка области предпросмотра
+        int previewX = this.getX() + this.width - 110;
+        int previewY = this.getY() + 10;
+        int previewW = 100;
+        int previewH = 150;
+        GuiUtils.drawDarkPanel(context, previewX, previewY, previewW, previewH);
+        context.drawCenteredTextWithShadow(this.client.textRenderer, "Preview", previewX + previewW / 2, previewY + 5, 0xaaaaaa);
+
+        // Отрисовка текстового поля
+        if (this.nameField != null) {
+            this.nameField.render(context, mouseX, mouseY, delta);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.nameField != null) {
+            return this.nameField.mouseClicked(mouseX, mouseY, button);
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.nameField != null && this.nameField.isFocused()) {
+            return this.nameField.keyPressed(keyCode, scanCode, modifiers);
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (this.nameField != null && this.nameField.isFocused()) {
+            return this.nameField.charTyped(chr, modifiers);
+        }
+        return super.charTyped(chr, modifiers);
+    }
+}
+
+==================================================
+
+--- Файл №6 ---
+Путь: src\client\java\seq\sequencermod\client\gui\screen\MorphScreen.java
+--------------------
+package seq.sequencermod.client.gui.screen;
+
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.text.Text;
+import seq.sequencermod.client.gui.MorphPanelFactory;
+import seq.sequencermod.client.gui.widget.panel.GuiMorphPanel;
+import seq.sequencermod.morph.AbstractMorph;
+import seq.sequencermod.morph.PlayerMorph;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class MorphScreen extends Screen {
+
+    private final List<AbstractMorph> morphs = new ArrayList<>();
+    private AbstractMorph selectedMorph;
+    private GuiMorphPanel currentPanel;
+
+    public MorphScreen() {
+        super(Text.literal("Morph Screen"));
+        // Для теста добавим один морф игрока
+        this.morphs.add(new PlayerMorph());
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        // Кнопка для закрытия экрана
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("Done"), (button) -> {
+            this.close();
+        }).dimensions(this.width / 2 - 50, this.height - 30, 100, 20).build());
+
+        // Выбираем первый морф по умолчанию
+        if (!this.morphs.isEmpty()) {
+            this.selectMorph(this.morphs.get(0));
+        }
+    }
+
+    private void selectMorph(AbstractMorph morph) {
+        if (this.currentPanel != null) {
+            this.currentPanel.close();
+            // В новых версиях метод remove, в старых может быть removeSelectable
+            this.remove(this.currentPanel);
+        }
+
+        this.selectedMorph = morph;
+        // Здесь мы используем нашу фабрику!
+        this.currentPanel = MorphPanelFactory.createPanelFor(this.selectedMorph, this.client);
+
+        if (this.currentPanel != null) {
+            // Размещаем панель
+            this.currentPanel.setX(130); // Отступ слева для списка
+            this.currentPanel.setY(20);
+            // ИСПОЛЬЗУЕМ СЕТТЕРЫ
+            this.currentPanel.setWidth(this.width - 140);
+            this.currentPanel.setHeight(this.height - 50);
+            this.currentPanel.open();
+            this.addSelectableChild(this.currentPanel);
+        }
+    }
+
+    @Override
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        // Фон - ИСПРАВЛЕННАЯ ВЕРСИЯ
+        this.renderBackground(context);
+
+        // Отрисовка списка морфов (пока простой текст)
+        context.drawTextWithShadow(this.textRenderer, "Morphs", 10, 10, 0xFFFFFF);
+        for (int i = 0; i < this.morphs.size(); i++) {
+            AbstractMorph morph = this.morphs.get(i);
+            int color = (morph == this.selectedMorph) ? 0xFFFF55 : 0xFFFFFF; // Желтый для выбранного
+            context.drawTextWithShadow(this.textRenderer, morph.name, 20, 30 + i * 12, color);
+        }
+
+        // Отрисовка панели и дочерних виджетов
+        super.render(context, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public void close() {
+        // Убедимся, что панель сохраняет свои данные при закрытии
+        if (this.currentPanel != null) {
+            this.currentPanel.close();
+        }
+        super.close();
+    }
+}
+
+==================================================
+
+--- Файл №7 ---
+Путь: src\client\java\seq\sequencermod\client\gui\widget\GuiElement.java
+--------------------
+package seq.sequencermod.client.gui.widget;
+
+import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.text.Text;
+
+/**
+ * Базовый класс для всех наших GUI элементов.
+ * Теперь наследуется от ClickableWidget для правильной интеграции с системой GUI.
+ */
+public abstract class GuiElement extends ClickableWidget {
+
+    public GuiElement(int x, int y, int width, int height) {
+        // Передаем пустой текст в супер-конструктор, т.к. мы будем сами управлять отрисовкой.
+        super(x, y, width, height, Text.literal(""));
+    }
+
+    // Этот метод теперь обязателен для реализации, но мы оставим его пустым,
+    // так как у нас не будет стандартного поведения при нажатии.
+    @Override
+    protected void appendClickableNarrations(net.minecraft.client.gui.screen.narration.NarrationMessageBuilder builder) {
+        // Для доступности, пока не реализуем
+    }
+}
+
+==================================================
+
+--- Файл №8 ---
+Путь: src\client\java\seq\sequencermod\client\gui\widget\panel\GuiMorphPanel.java
+--------------------
+package seq.sequencermod.client.gui.widget.panel;
+
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
+import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.text.Text;
+import seq.sequencermod.morph.AbstractMorph;
+
+public abstract class GuiMorphPanel extends ClickableWidget {
+
+    protected final MinecraftClient client;
+    protected final AbstractMorph morph;
+
+    public GuiMorphPanel(MinecraftClient client, AbstractMorph morph) {
+        super(0, 0, 0, 0, Text.literal("")); // Позиция и размер будут установлены экраном
+        this.client = client;
+        this.morph = morph;
+    }
+
+    /**
+     * Этот метод отвечает за отрисовку виджета.
+     * В вашей версии он называется renderButton.
+     */
+    @Override
+    public abstract void renderButton(DrawContext context, int mouseX, int mouseY, float delta);
+
+    /**
+     * Методы для установки размеров панели извне,
+     * так как поля width/height защищены.
+     */
+    public void setWidth(int width) {
+        this.width = width;
+    }
+
+    public void setHeight(int height) {
+        this.height = height;
+    }
+
+
+    /**
+     * Новый обязательный метод для систем чтения с экрана.
+     * Мы его не используем, поэтому оставляем пустым.
+     */
+    @Override
+    protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+        // Пусто
+    }
+
+    /**
+     * Вызывается, когда панель становится активной.
+     */
+    public void open() {
+    }
+
+    /**
+     * Вызывается, когда панель закрывается.
+     */
+    public void close() {
+    }
+}
+
+==================================================
+
+--- Файл №9 ---
 Путь: src\client\java\seq\sequencermod\client\model\GeckoModel.java
 --------------------
 package seq.sequencermod.client.model;
@@ -89,7 +434,7 @@ public class GeckoModel extends GeoModel<GeckoEntity> {
 
 ==================================================
 
---- Файл №4 ---
+--- Файл №10 ---
 Путь: src\client\java\seq\sequencermod\client\renderer\GeckoRenderer.java
 --------------------
 package seq.sequencermod.client.renderer;
@@ -108,51 +453,95 @@ public class GeckoRenderer extends GeoEntityRenderer<GeckoEntity> {
 
 ==================================================
 
---- Файл №5 ---
+--- Файл №11 ---
 Путь: src\client\java\seq\sequencermod\client\screen\SequencerScreen.java
 --------------------
 package seq.sequencermod.client.screen;
 
-import seq.sequencermod.SequencerMod;
-import seq.sequencermod.screen.SequencerScreenHandler;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import seq.sequencermod.client.gui.MorphPanelFactory;
+import seq.sequencermod.client.gui.widget.panel.GuiMorphPanel;
+import seq.sequencermod.handler.SequencerScreenHandler;
+import seq.sequencermod.morph.AbstractMorph;
+import seq.sequencermod.morph.PlayerMorph;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class SequencerScreen extends HandledScreen<SequencerScreenHandler> {
-    private static final Identifier TEXTURE =
-            new Identifier(SequencerMod.MOD_ID, "textures/gui/sequencer_gui.png");
 
+    private final List<AbstractMorph> morphs = new ArrayList<>();
+    private AbstractMorph selectedMorph;
+    private GuiMorphPanel currentPanel;
+
+    // ИСПРАВЛЕНИЕ: Вот правильный конструктор, который нужен для регистрации
     public SequencerScreen(SequencerScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
+        this.backgroundWidth = 300;
+        this.backgroundHeight = 200;
+
+        // Для теста добавим один морф игрока
+        this.morphs.add(new PlayerMorph());
     }
 
     @Override
     protected void init() {
         super.init();
-        titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
+        if (!this.morphs.isEmpty()) {
+            this.selectMorph(this.morphs.get(0));
+        }
     }
 
-    @Override
-    protected void drawBackground(DrawContext context, float delta, int mouseX, int mouseY) {
-        int x = (width - backgroundWidth) / 2;
-        int y = (height - backgroundHeight) / 2;
-        context.drawTexture(TEXTURE, x, y, 0, 0, backgroundWidth, backgroundHeight);
+    private void selectMorph(AbstractMorph morph) {
+        if (this.currentPanel != null) {
+            this.currentPanel.close();
+            this.remove(this.currentPanel);
+        }
+
+        this.selectedMorph = morph;
+        this.currentPanel = MorphPanelFactory.createPanelFor(this.selectedMorph, this.client);
+
+        if (this.currentPanel != null) {
+            this.currentPanel.setX(this.x + 130);
+            this.currentPanel.setY(this.y + 20);
+            this.currentPanel.setWidth(this.width - (this.x + 140));
+            this.currentPanel.setHeight(this.height - (this.y + 50));
+            this.currentPanel.open();
+            this.addSelectableChild(this.currentPanel);
+        }
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context);
+        this.renderBackground(context);
         super.render(context, mouseX, mouseY, delta);
-        drawMouseoverTooltip(context, mouseX, mouseY);
+
+        context.drawTextWithShadow(this.textRenderer, "Morphs", this.x + 10, this.y + 10, 0xFFFFFF);
+        for (int i = 0; i < this.morphs.size(); i++) {
+            AbstractMorph morph = this.morphs.get(i);
+            String label = morph.name;
+            int color = (morph == this.selectedMorph) ? 0xFFFF55 : 0xFFFFFF;
+            context.drawTextWithShadow(this.textRenderer, label, this.x + 20, this.y + 30 + i * 12, color);
+        }
+    }
+
+    @Override
+    protected void drawBackground(DrawContext context, float delta, int mouseX, int mouseY) {
+        // Пусто, так как у нас нет стандартного фона
+    }
+
+    @Override
+    protected void drawForeground(DrawContext context, int mouseX, int mouseY) {
+        // Пусто, так как мы рисуем все в render()
     }
 }
 
 ==================================================
 
---- Файл №6 ---
+--- Файл №12 ---
 Путь: src\client\java\seq\sequencermod\mixin\client\ExampleClientMixin.java
 --------------------
 package seq.sequencermod.mixin.client;
@@ -173,7 +562,7 @@ public class ExampleClientMixin {
 
 ==================================================
 
---- Файл №7 ---
+--- Файл №13 ---
 Путь: src\client\resources\sequencermod.client.mixins.json
 --------------------
 {
@@ -190,86 +579,86 @@ public class ExampleClientMixin {
 
 ==================================================
 
---- Файл №8 ---
+--- Файл №14 ---
 Путь: src\main\java\seq\sequencermod\SequencerMod.java
 --------------------
 package seq.sequencermod;
 
-import seq.sequencermod.block.ModBlocks;
-import seq.sequencermod.block.entity.ModBlockEntities;
-import seq.sequencermod.entity.ModEntities;
-import seq.sequencermod.item.ModItemGroups;
-import seq.sequencermod.item.ModItems;
-import seq.sequencermod.screen.ModScreenHandlers;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.bernie.geckolib.GeckoLib;
+import seq.sequencermod.init.ModScreenHandlers;
+import seq.sequencermod.registry.ModBlockEntities;
+import seq.sequencermod.registry.ModBlocks;// <-- Добавьте этот импорт
 
 public class SequencerMod implements ModInitializer {
-    public static final String MOD_ID = "sequencer";
+    public static final String MOD_ID = "sequencermod";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     @Override
     public void onInitialize() {
         LOGGER.info("Initializing Sequencer Mod");
-
-        GeckoLib.initialize();
-
-        ModItemGroups.registerItemGroups();
-        ModItems.registerModItems();
         ModBlocks.registerModBlocks();
-        ModBlockEntities.registerBlockEntities();
-        ModEntities.registerModEntities();
-        ModScreenHandlers.registerScreenHandlers();
+        ModBlockEntities.registerModBlockEntities();
+        ModScreenHandlers.register(); // <-- Добавьте эту строку
     }
 }
 
 ==================================================
 
---- Файл №9 ---
-Путь: src\main\java\seq\sequencermod\block\ModBlocks.java
+--- Файл №15 ---
+Путь: src\main\java\seq\sequencermod\block\SequencerBlock.java
 --------------------
 package seq.sequencermod.block;
 
-import seq.sequencermod.SequencerMod;
-import seq.sequencermod.block.custom.SequencerBlock;
-import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
-import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.util.Identifier;
+import net.minecraft.block.BlockEntityProvider;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.BlockWithEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
+import seq.sequencermod.block.entity.SequencerBlockEntity;
 
-public class ModBlocks {
-    public static final Block SEQUENCER_BLOCK = registerBlock("sequencer_block",
-            new SequencerBlock(FabricBlockSettings.copyOf(Blocks.IRON_BLOCK)
-                    .nonOpaque() // Делает блок визуально неполным, важно для прозрачности
-                    .collidable(false) // Дела...
-                    // .lightBlockage(15) // <-- УДАЛЕНО: Эта строка вызывала ошибку
-            ));
+public class SequencerBlock extends BlockWithEntity implements BlockEntityProvider {
 
-    private static Block registerBlock(String name, Block block) {
-        registerBlockItem(name, block);
-        return Registry.register(Registries.BLOCK, new Identifier(SequencerMod.MOD_ID, name), block);
+    public SequencerBlock(Settings settings) {
+        super(settings);
     }
 
-    private static Item registerBlockItem(String name, Block block) {
-        return Registry.register(Registries.ITEM, new Identifier(SequencerMod.MOD_ID, name),
-                new BlockItem(block, new FabricItemSettings()));
+    @Override
+    public BlockRenderType getRenderType(BlockState state) {
+        return BlockRenderType.MODEL;
     }
 
-    public static void registerModBlocks() {
-        SequencerMod.LOGGER.info("Registering ModBlocks for " + SequencerMod.MOD_ID);
+    @Nullable
+    @Override
+    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+        return new SequencerBlockEntity(pos, state);
+    }
+
+    @Override
+    public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
+        if (!world.isClient) {
+            // Этот вызов теперь работает с ExtendedScreenHandlerFactory
+            NamedScreenHandlerFactory screenHandlerFactory = state.createScreenHandlerFactory(world, pos);
+            if (screenHandlerFactory != null) {
+                player.openHandledScreen(screenHandlerFactory);
+            }
+        }
+        return ActionResult.SUCCESS;
     }
 }
 
 ==================================================
 
---- Файл №10 ---
+--- Файл №16 ---
 Путь: src\main\java\seq\sequencermod\block\custom\SequencerBlock.java
 --------------------
 package seq.sequencermod.block.custom;
@@ -337,85 +726,60 @@ public class SequencerBlock extends BlockWithEntity implements BlockEntityProvid
 
 ==================================================
 
---- Файл №11 ---
-Путь: src\main\java\seq\sequencermod\block\entity\ModBlockEntities.java
---------------------
-package seq.sequencermod.block.entity;
-
-import seq.sequencermod.SequencerMod;
-import seq.sequencermod.block.ModBlocks;
-import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.util.Identifier;
-
-public class ModBlockEntities {
-    public static final BlockEntityType<SequencerBlockEntity> SEQUENCER_BLOCK_ENTITY =
-            Registry.register(Registries.BLOCK_ENTITY_TYPE,
-                    new Identifier(SequencerMod.MOD_ID, "sequencer_be"),
-                    FabricBlockEntityTypeBuilder.create(SequencerBlockEntity::new,
-                            ModBlocks.SEQUENCER_BLOCK).build());
-
-
-    public static void registerBlockEntities() {
-        SequencerMod.LOGGER.info("Registering Block Entities for " + SequencerMod.MOD_ID);
-    }
-}
-
-==================================================
-
---- Файл №12 ---
+--- Файл №17 ---
 Путь: src\main\java\seq\sequencermod\block\entity\SequencerBlockEntity.java
 --------------------
 package seq.sequencermod.block.entity;
 
-import seq.sequencermod.screen.SequencerScreenHandler;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory; // <-- ИЗМЕНЕН ИМПОРТ
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.network.PacketByteBuf; // <-- ДОБАВЛЕН ИМПОРТ
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.screen.ScreenHandler;
-import net.minecraft.server.network.ServerPlayerEntity; // <-- ДОБАВЛЕН ИМПОРТ
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
+import seq.sequencermod.handler.SequencerScreenHandler;
+import seq.sequencermod.registry.ModBlockEntities;
 
-// ИЗМЕНЕНИЕ: Реализуем ExtendedScreenHandlerFactory вместо NamedScreenHandlerFactory
 public class SequencerBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory {
+
     public SequencerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SEQUENCER_BLOCK_ENTITY, pos, state);
     }
 
-    // Этот метод остается без изменений
     @Override
-    public Text getDisplayName() {
-        return Text.translatable("block.sequencer.sequencer_block");
+    public void writeScreenOpeningData(ServerPlayerEntity player, PacketByteBuf buf) {
+        // Здесь мы можем отправлять данные клиенту.
+        // Например, позицию блока, чтобы Screen мог найти этот BlockEntity.
+        // buf.writeBlockPos(pos);
     }
 
-    // Этот метод остается без изменений
+    @Override
+    public Text getDisplayName() {
+        return Text.translatable("gui.sequencermod.sequencer_title");
+    }
+
     @Nullable
     @Override
     public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        return new SequencerScreenHandler(syncId, playerInventory, new SimpleInventory(0));
+        // ИСПРАВЛЕНИЕ: Убираем лишний аргумент new SimpleInventory(0)
+        return new SequencerScreenHandler(syncId, playerInventory);
     }
 
-    // ДОБАВЛЕННЫЙ МЕТОД: Этого требует интерфейс ExtendedScreenHandlerFactory.
-    // Он нужен для отправки дополнительных данных с сервера на клиент при открытии GUI.
-    // Пока нам нечего отправлять, поэтому он остается пустым.
     @Override
-    public void writeScreenOpeningData(ServerPlayerEntity player, PacketByteBuf buf) {
-        // Пример: если бы нам нужно было отправить позицию блока, мы бы написали:
-        // buf.writeBlockPos(pos);
+    protected void writeNbt(NbtCompound nbt) {
+        super.writeNbt(nbt);
     }
 }
 
 ==================================================
 
---- Файл №13 ---
+--- Файл №18 ---
 Путь: src\main\java\seq\sequencermod\entity\GeckoEntity.java
 --------------------
 package seq.sequencermod.entity;
@@ -483,7 +847,7 @@ public class GeckoEntity extends PathAwareEntity implements GeoEntity {
 
 ==================================================
 
---- Файл №14 ---
+--- Файл №19 ---
 Путь: src\main\java\seq\sequencermod\entity\ModEntities.java
 --------------------
 package seq.sequencermod.entity;
@@ -514,13 +878,79 @@ public class ModEntities {
 
 ==================================================
 
---- Файл №15 ---
+--- Файл №20 ---
+Путь: src\main\java\seq\sequencermod\handler\SequencerScreenHandler.java
+--------------------
+package seq.sequencermod.handler;
+
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack; // <-- Добавьте этот импорт
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandler;
+import seq.sequencermod.init.ModScreenHandlers;
+
+public class SequencerScreenHandler extends ScreenHandler {
+
+    // Этот конструктор вызывается на клиенте
+    public SequencerScreenHandler(int syncId, PlayerInventory playerInventory, PacketByteBuf buf) {
+        this(syncId, playerInventory);
+    }
+
+    // Этот конструктор вызывается на сервере
+    public SequencerScreenHandler(int syncId, PlayerInventory playerInventory) {
+        super(ModScreenHandlers.SEQUENCER_SCREEN_HANDLER, syncId);
+    }
+
+    @Override
+    public boolean canUse(PlayerEntity player) {
+        return true;
+    }
+
+    // ИСПРАВЛЕНИЕ: Добавляем обязательный метод quickMove
+    @Override
+    public ItemStack quickMove(PlayerEntity player, int slot) {
+        // Так как у нас нет слотов, просто возвращаем пустой предмет
+        return ItemStack.EMPTY;
+    }
+}
+
+==================================================
+
+--- Файл №21 ---
+Путь: src\main\java\seq\sequencermod\init\ModScreenHandlers.java
+--------------------
+package seq.sequencermod.init;
+
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.util.Identifier;
+import seq.sequencermod.SequencerMod;
+import seq.sequencermod.handler.SequencerScreenHandler;
+
+public class ModScreenHandlers {
+    public static final ScreenHandlerType<SequencerScreenHandler> SEQUENCER_SCREEN_HANDLER =
+            new ExtendedScreenHandlerType<>(SequencerScreenHandler::new);
+
+    public static void register() {
+        Registry.register(
+                Registries.SCREEN_HANDLER,
+                new Identifier(SequencerMod.MOD_ID, "sequencer"),
+                SEQUENCER_SCREEN_HANDLER
+        );
+    }
+}
+
+==================================================
+
+--- Файл №22 ---
 Путь: src\main\java\seq\sequencermod\item\ModItemGroups.java
 --------------------
 package seq.sequencermod.item;
 
 import seq.sequencermod.SequencerMod;
-import seq.sequencermod.block.ModBlocks;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
@@ -528,6 +958,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import seq.sequencermod.registry.ModBlocks;
 
 public class ModItemGroups {
     public static final ItemGroup SEQUENCER_GROUP = Registry.register(Registries.ITEM_GROUP,
@@ -545,7 +976,7 @@ public class ModItemGroups {
 
 ==================================================
 
---- Файл №16 ---
+--- Файл №23 ---
 Путь: src\main\java\seq\sequencermod\item\ModItems.java
 --------------------
 package seq.sequencermod.item;
@@ -574,7 +1005,7 @@ public class ModItems {
 
 ==================================================
 
---- Файл №17 ---
+--- Файл №24 ---
 Путь: src\main\java\seq\sequencermod\mixin\ExampleMixin.java
 --------------------
 package seq.sequencermod.mixin;
@@ -595,93 +1026,146 @@ public class ExampleMixin {
 
 ==================================================
 
---- Файл №18 ---
-Путь: src\main\java\seq\sequencermod\screen\ModScreenHandlers.java
+--- Файл №25 ---
+Путь: src\main\java\seq\sequencermod\morph\AbstractMorph.java
 --------------------
-package seq.sequencermod.screen;
+package seq.sequencermod.morph;
 
-import seq.sequencermod.SequencerMod;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
+import net.minecraft.nbt.NbtCompound;
+
+public abstract class AbstractMorph {
+    public String name;
+    public boolean hasCustomName;
+
+    public AbstractMorph() {
+        this.name = "";
+        this.hasCustomName = false;
+    }
+
+    public void fromNbt(NbtCompound nbt) {
+        if (nbt.contains("Name")) {
+            this.name = nbt.getString("Name");
+        }
+    }
+
+    public void toNbt(NbtCompound nbt) {
+        if (this.name != null && !this.name.isEmpty()) {
+            nbt.putString("Name", this.name);
+        }
+    }
+
+    public abstract AbstractMorph copy();
+}
+
+==================================================
+
+--- Файл №26 ---
+Путь: src\main\java\seq\sequencermod\morph\PlayerMorph.java
+--------------------
+package seq.sequencermod.morph;
+
+import net.minecraft.nbt.NbtCompound;
+
+public class PlayerMorph extends AbstractMorph {
+
+    public PlayerMorph() {
+        super();
+        this.name = "Steve";
+    }
+
+    @Override
+    public AbstractMorph copy() {
+        PlayerMorph morph = new PlayerMorph();
+        morph.name = this.name;
+        morph.hasCustomName = this.hasCustomName;
+        return morph;
+    }
+}
+
+==================================================
+
+--- Файл №27 ---
+Путь: src\main\java\seq\sequencermod\registry\ModBlockEntities.java
+--------------------
+package seq.sequencermod.registry;
+
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
-import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.util.Identifier;
+import seq.sequencermod.SequencerMod;
+import seq.sequencermod.block.entity.SequencerBlockEntity;
 
-public class ModScreenHandlers {
-    public static final ScreenHandlerType<SequencerScreenHandler> SEQUENCER_SCREEN_HANDLER =
-            Registry.register(Registries.SCREEN_HANDLER, new Identifier(SequencerMod.MOD_ID, "sequencer_sh"),
-                    // Теперь эта строка не будет вызывать ошибку, так как мы добавили нужный конструктор
-                    new ExtendedScreenHandlerType<>(SequencerScreenHandler::new));
+public class ModBlockEntities {
 
-    public static void registerScreenHandlers() {
-        SequencerMod.LOGGER.info("Registering Screen Handlers for " + SequencerMod.MOD_ID);
+    public static final BlockEntityType<SequencerBlockEntity> SEQUENCER_BLOCK_ENTITY =
+            Registry.register(Registries.BLOCK_ENTITY_TYPE,
+                    new Identifier(SequencerMod.MOD_ID, "sequencer_block_entity"),
+                    FabricBlockEntityTypeBuilder.create(SequencerBlockEntity::new, ModBlocks.SEQUENCER_BLOCK).build());
+
+    public static void registerModBlockEntities() {
+        SequencerMod.LOGGER.info("Registering ModBlockEntities for " + SequencerMod.MOD_ID);
     }
 }
 
 ==================================================
 
---- Файл №19 ---
-Путь: src\main\java\seq\sequencermod\screen\SequencerScreenHandler.java
+--- Файл №28 ---
+Путь: src\main\java\seq\sequencermod\registry\ModBlocks.java
 --------------------
-package seq.sequencermod.screen;
+package seq.sequencermod.registry;
 
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketByteBuf; // <-- Добавлен импорт
-import net.minecraft.screen.ScreenHandler;
+import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
+import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
+import net.minecraft.block.Block;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.sound.BlockSoundGroup; // Импортируем BlockSoundGroup
+import net.minecraft.util.Identifier;
+import seq.sequencermod.SequencerMod;
+import seq.sequencermod.block.SequencerBlock;
 
-public class SequencerScreenHandler extends ScreenHandler {
-    // Временный инвентарь, пока у нас нет реальных слотов
-    private final Inventory inventory;
+public class ModBlocks {
 
-    // Этот конструктор будет использоваться ExtendedScreenHandlerType
-    // Он принимает PacketByteBuf, который мы пока игнорируем.
-    public SequencerScreenHandler(int syncId, PlayerInventory playerInventory, PacketByteBuf extraData) {
-        this(syncId, playerInventory, new SimpleInventory(0)); // 0 слотов
+    // Строка ниже была исправлена
+    public static final Block SEQUENCER_BLOCK = registerBlock("sequencer_block",
+            new SequencerBlock(FabricBlockSettings.create().sounds(BlockSoundGroup.METAL).strength(4.0f).requiresTool()));
+
+    private static Block registerBlock(String name, Block block) {
+        registerBlockItem(name, block);
+        return Registry.register(Registries.BLOCK, new Identifier(SequencerMod.MOD_ID, name), block);
     }
 
-    // Основной конструктор, который выполняет всю работу
-    public SequencerScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory) {
-        super(ModScreenHandlers.SEQUENCER_SCREEN_HANDLER, syncId);
-        checkSize(inventory, 0);
-        this.inventory = inventory;
-        inventory.onOpen(playerInventory.player);
+    private static Item registerBlockItem(String name, Block block) {
+        return Registry.register(Registries.ITEM, new Identifier(SequencerMod.MOD_ID, name),
+                new BlockItem(block, new FabricItemSettings()));
     }
 
-    @Override
-    public ItemStack quickMove(PlayerEntity player, int slot) {
-        return ItemStack.EMPTY;
-    }
-
-    @Override
-    public boolean canUse(PlayerEntity player) {
-        return this.inventory.canPlayerUse(player);
+    public static void registerModBlocks() {
+        SequencerMod.LOGGER.info("Registering ModBlocks for " + SequencerMod.MOD_ID);
     }
 }
 
 ==================================================
 
---- Файл №20 ---
+--- Файл №29 ---
 Путь: src\main\resources\fabric.mod.json
 --------------------
 {
 	"schemaVersion": 1,
-	"id": "sequencer",
+	"id": "sequencermod",
 	"version": "${version}",
 	"name": "Sequencer Mod",
-	"description": "A mod with a sequencer block.",
+	"description": "Recreation of the Blockbuster Sequencer Morph as a block.",
 	"authors": [
-		"supriadozimah"
+		"me"
 	],
-	"contact": {
-		"homepage": "",
-		"sources": ""
-	},
+	"contact": {},
 	"license": "MIT",
-	"icon": "assets/sequencer/icon.png",
+	"icon": "assets/sequencermod/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
@@ -691,21 +1175,21 @@ public class SequencerScreenHandler extends ScreenHandler {
 			"seq.sequencermod.client.SequencerModClient"
 		]
 	},
+	"mixins": [
+		"sequencermod.mixins.json"
+	],
 	"depends": {
 		"fabricloader": ">=0.14.22",
+		"fabric-api": "*",
 		"minecraft": "~1.20.1",
 		"java": ">=17",
-		"fabric-api": "*",
-		"geckolib": "4.2.2"
-	},
-	"suggests": {
-		"another-mod": "*"
+		"geckolib": ">=4.2.2"
 	}
 }
 
 ==================================================
 
---- Файл №21 ---
+--- Файл №30 ---
 Путь: src\main\resources\sequencermod.mixins.json
 --------------------
 {
@@ -725,8 +1209,8 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №22 ---
-Путь: src\main\resources\assets\sequencer\icon.png
+--- Файл №31 ---
+Путь: src\main\resources\assets\sequencermod\icon.png
 --------------------
 [Это бинарный файл. Отображение содержимого невозможно.]
 [Расширение: .png]
@@ -734,8 +1218,8 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №23 ---
-Путь: src\main\resources\assets\sequencer\animations\entity\custom_cube.animation.json
+--- Файл №32 ---
+Путь: src\main\resources\assets\sequencermod\animations\entity\custom_cube.animation.json
 --------------------
 {
 	"format_version": "1.8.0",
@@ -799,8 +1283,8 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №24 ---
-Путь: src\main\resources\assets\sequencer\animations\entity\gecko.animation.json
+--- Файл №33 ---
+Путь: src\main\resources\assets\sequencermod\animations\entity\gecko.animation.json
 --------------------
 {
   "format_version": "1.8.0",
@@ -829,21 +1313,19 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №25 ---
-Путь: src\main\resources\assets\sequencer\blockstates\sequencer_block.json
+--- Файл №34 ---
+Путь: src\main\resources\assets\sequencermod\blockstates\sequencer_block.json
 --------------------
 {
   "variants": {
-    "": {
-      "model": "sequencer:block/sequencer"
-    }
+    "": { "model": "sequencermod:block/sequencer_block" }
   }
 }
 
 ==================================================
 
---- Файл №26 ---
-Путь: src\main\resources\assets\sequencer\geo\entity\custom_cube.geo.json
+--- Файл №35 ---
+Путь: src\main\resources\assets\sequencermod\geo\entity\custom_cube.geo.json
 --------------------
 {
 	"format_version": "1.12.0",
@@ -872,8 +1354,8 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №27 ---
-Путь: src\main\resources\assets\sequencer\geo\entity\gecko.geo.json
+--- Файл №36 ---
+Путь: src\main\resources\assets\sequencermod\geo\entity\gecko.geo.json
 --------------------
 {
   "format_version": "1.12.0",
@@ -915,20 +1397,27 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №28 ---
-Путь: src\main\resources\assets\sequencer\lang\en_us.json
+--- Файл №37 ---
+Путь: src\main\resources\assets\sequencermod\geo\entity\model.bbmodel
+--------------------
+{"meta":{"format_version":"4.10","model_format":"animated_entity_model","box_uv":true},"name":"model","model_identifier":"","visible_box":[2,1.5,0.25],"variable_placeholders":"","variable_placeholder_buttons":[],"timeline_setups":[],"unhandled_root_fields":{},"geckolib_modid":"","geckolib_model_type":"Entity","geckolib_filepath_cache":{"model":"C:\\Users\\User\\Desktop\\SequencerMod\\src\\main\\resources\\assets\\sequencer\\geo\\entity\\custom_cube.geo.json","animation":"C:\\Users\\User\\Desktop\\SequencerMod\\src\\main\\resources\\assets\\sequencer\\animations\\entity\\custom_cube.animation.json"},"resolution":{"width":16,"height":16},"elements":[{"name":"cube","box_uv":true,"rescale":false,"locked":false,"light_emission":0,"render_order":"default","allow_mirror_modeling":true,"from":[-1,0,-1],"to":[1,2,1],"autouv":0,"color":8,"origin":[0,0,0],"faces":{"north":{"uv":[2,2,4,4],"texture":0},"east":{"uv":[0,2,2,4],"texture":0},"south":{"uv":[6,2,8,4],"texture":0},"west":{"uv":[4,2,6,4],"texture":0},"up":{"uv":[4,2,2,0],"texture":0},"down":{"uv":[6,0,4,2],"texture":0}},"type":"cube","uuid":"4916faed-35a7-3624-e554-81fcc71de4ab"}],"outliner":[{"name":"bone","origin":[0,0,0],"color":0,"uuid":"acd102a7-6db0-a263-f88c-11947f96946a","export":true,"mirror_uv":false,"isOpen":true,"locked":false,"visibility":true,"autouv":0,"selected":false,"children":["4916faed-35a7-3624-e554-81fcc71de4ab"]}],"textures":[{"path":"C:\\Users\\User\\Desktop\\SequencerMod\\src\\main\\resources\\assets\\sequencer\\textures\\entity\\gecko.png","name":"gecko.png","folder":"block","namespace":"","id":"0","group":"","width":16,"height":16,"uv_width":16,"uv_height":16,"particle":true,"use_as_default":false,"layers_enabled":false,"sync_to_project":"","render_mode":"default","render_sides":"auto","pbr_channel":"color","frame_time":1,"frame_order_type":"loop","frame_order":"","frame_interpolate":false,"visible":true,"internal":true,"saved":true,"uuid":"496b4601-eb62-e3d7-59b8-37044ab8ae34","relative_path":"../../textures/entity/gecko.png","source":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAEZJREFUOE9jZICCVgaG/yBm1X8wxcDIyMgIk8NHwxWRbcD//1ArcVhDyCWMFBtAjD+JCgNyDSIqpEddgD94RwORgYHiMAAAgP4QEW15I2QAAAAASUVORK5CYII="}],"animations":[{"uuid":"bb44cda5-35e9-23d9-8de1-c1da02a5d047","name":"idle","loop":"once","override":false,"length":2,"snapping":24,"selected":false,"saved":false,"path":"","anim_time_update":"","blend_weight":"","start_delay":"","loop_delay":"","animators":{"acd102a7-6db0-a263-f88c-11947f96946a":{"name":"bone","type":"bone","keyframes":[{"channel":"scale","data_points":[{"x":"4\n\n","y":"0.5","z":"4"}],"uuid":"7e04401d-996f-45c5-d7f4-2ad395d1d30f","time":0,"color":-1,"uniform":false,"interpolation":"linear"},{"channel":"scale","data_points":[{"x":"1","y":"3","z":"1"}],"uuid":"dcd983d9-91d7-0c3d-b1fb-7c1e66dec294","time":1,"color":-1,"uniform":false,"interpolation":"linear","easing":"easeOutElastic"},{"channel":"scale","data_points":[{"x":"4\n\n","y":"0.5","z":"4"}],"uuid":"eaf9471e-0040-25c5-8d0b-efa66392d3ae","time":2,"color":-1,"uniform":false,"interpolation":"linear","easing":"easeOutElastic"}]}}},{"uuid":"f57b40c4-c601-f2ff-3a37-ddbb5ec13b43","name":"walk","loop":"once","override":false,"length":1.04167,"snapping":24,"selected":true,"saved":false,"path":"","anim_time_update":"","blend_weight":"","start_delay":"","loop_delay":"","animators":{"acd102a7-6db0-a263-f88c-11947f96946a":{"name":"bone","type":"bone","keyframes":[{"channel":"position","data_points":[{"x":"0","y":"0","z":"0"}],"uuid":"95a77b19-3804-23d7-2201-827a2c273f60","time":0,"color":-1,"interpolation":"linear"},{"channel":"position","data_points":[{"x":"0","y":"5","z":"0"}],"uuid":"8df10733-bfdc-3503-3adc-77e6be4a828e","time":0.54167,"color":-1,"interpolation":"linear","easing":"easeInBack"},{"channel":"position","data_points":[{"x":"0","y":"0","z":"0"}],"uuid":"817c1e7d-c7cb-6f8b-caf1-3b677698623b","time":1.04167,"color":-1,"interpolation":"linear","easing":"easeInBack"},{"channel":"scale","data_points":[{"x":"1","y":"1","z":"1"}],"uuid":"e28925fa-68f1-0732-c4b3-95e4eb5d456b","time":0,"color":-1,"uniform":true,"interpolation":"linear"},{"channel":"scale","data_points":[{"x":"6","y":"0.2","z":"6"}],"uuid":"d229832d-b26f-42aa-a201-288e8cc34454","time":0.54167,"color":-1,"uniform":false,"interpolation":"linear","easing":"easeInBack"},{"channel":"scale","data_points":[{"x":"1","y":"1","z":"1"}],"uuid":"7a922c4a-9203-4daa-ab35-4ae8f9331ded","time":1.04167,"color":-1,"uniform":true,"interpolation":"linear","easing":"easeInBack"}]}}}]}
+
+==================================================
+
+--- Файл №38 ---
+Путь: src\main\resources\assets\sequencermod\lang\en_us.json
 --------------------
 {
-  "block.sequencer.sequencer_block": "Sequencer",
-  "itemgroup.sequencer_group": "Sequencer Mod",
-  "entity.sequencer.gecko": "Gecko",
-  "item.sequencer.gecko_spawn_egg": "Gecko Spawn Egg"
+  "block.sequencermod.sequencer_block": "Sequencer Block",
+  "gui.sequencermod.sequencer_title": "Sequencer Configuration",
+  "gui.sequencermod.done": "Done",
+  "gui.sequencermod.cancel": "Cancel"
 }
 
 ==================================================
 
---- Файл №29 ---
-Путь: src\main\resources\assets\sequencer\loot_tables\blocks\sequencer_block.json
+--- Файл №39 ---
+Путь: src\main\resources\assets\sequencermod\loot_tables\blocks\sequencer_block.json
 --------------------
 {
   "type": "minecraft:block",
@@ -952,29 +1441,29 @@ public class SequencerScreenHandler extends ScreenHandler {
 
 ==================================================
 
---- Файл №30 ---
-Путь: src\main\resources\assets\sequencer\models\block\sequencer.json
+--- Файл №40 ---
+Путь: src\main\resources\assets\sequencermod\models\block\sequencer.json
 --------------------
 {
+  "parent": "block/cube_all",
   "textures": {
-    "particle": "minecraft:block/iron_block"
-  },
-  "elements": []
+    "all": "sequencermod:block/sequencer_block"
+  }
 }
 
 ==================================================
 
---- Файл №31 ---
-Путь: src\main\resources\assets\sequencer\models\item\sequencer_block.json
+--- Файл №41 ---
+Путь: src\main\resources\assets\sequencermod\models\item\sequencer_block.json
 --------------------
 {
-  "parent": "sequencer:block/sequencer"
+  "parent": "sequencermod:block/sequencer_block"
 }
 
 ==================================================
 
---- Файл №32 ---
-Путь: src\main\resources\assets\sequencer\textures\entity\custom_cube.png
+--- Файл №42 ---
+Путь: src\main\resources\assets\sequencermod\textures\entity\custom_cube.png
 --------------------
 [Это бинарный файл. Отображение содержимого невозможно.]
 [Расширение: .png]

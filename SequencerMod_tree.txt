@@ -7,6 +7,17 @@ SequencerMod
     │   │       └── sequencermod
     │   │           ├── client
     │   │           │   ├── SequencerModClient.java
+    │   │           │   ├── gui
+    │   │           │   │   ├── GuiUtils.java
+    │   │           │   │   ├── MorphPanelFactory.java
+    │   │           │   │   ├── panel
+    │   │           │   │   │   └── GuiPlayerMorphPanel.java
+    │   │           │   │   ├── screen
+    │   │           │   │   │   └── MorphScreen.java
+    │   │           │   │   └── widget
+    │   │           │   │       ├── GuiElement.java
+    │   │           │   │       └── panel
+    │   │           │   │           └── GuiMorphPanel.java
     │   │           │   ├── lol
     │   │           │   ├── model
     │   │           │   │   └── GeckoModel.java
@@ -26,26 +37,36 @@ SequencerMod
         │       └── sequencermod
         │           ├── SequencerMod.java
         │           ├── block
-        │           │   ├── ModBlocks.java
+        │           │   ├── SequencerBlock.java
         │           │   ├── custom
         │           │   │   └── SequencerBlock.java
         │           │   └── entity
-        │           │       ├── ModBlockEntities.java
         │           │       └── SequencerBlockEntity.java
+        │           ├── client
+        │           │   └── gui
+        │           │       └── screen
         │           ├── entity
         │           │   ├── GeckoEntity.java
         │           │   └── ModEntities.java
+        │           ├── handler
+        │           │   └── SequencerScreenHandler.java
+        │           ├── init
+        │           │   └── ModScreenHandlers.java
         │           ├── item
         │           │   ├── ModItemGroups.java
         │           │   └── ModItems.java
         │           ├── mixin
         │           │   └── ExampleMixin.java
+        │           ├── morph
+        │           │   ├── AbstractMorph.java
+        │           │   └── PlayerMorph.java
+        │           ├── registry
+        │           │   ├── ModBlockEntities.java
+        │           │   └── ModBlocks.java
         │           └── screen
-        │               ├── ModScreenHandlers.java
-        │               └── SequencerScreenHandler.java
         └── resources
             ├── assets
-            │   └── sequencer
+            │   └── sequencermod
             │       ├── animations
             │       │   └── entity
             │       │       ├── custom_cube.animation.json
@@ -55,7 +76,8 @@ SequencerMod
             │       ├── geo
             │       │   └── entity
             │       │       ├── custom_cube.geo.json
-            │       │       └── gecko.geo.json
+            │       │       ├── gecko.geo.json
+            │       │       └── model.bbmodel
             │       ├── icon.png
             │       ├── lang
             │       │   └── en_us.json
